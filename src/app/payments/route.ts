@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     payment_date: new Date().toISOString(),
   };
 
-  createPayment(payment);
+  await createPayment(payment);
 
   return NextResponse.json(payment, { status: 201 });
 }
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const payments = findPaymentsByEmail(parsed.data.user_email).sort(
+  const payments = (await findPaymentsByEmail(parsed.data.user_email)).sort(
     (a, b) =>
       new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
   );

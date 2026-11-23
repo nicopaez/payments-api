@@ -1,33 +1,60 @@
 import { Payment } from "@/types/payment";
+import { pool } from "@/lib/db";
 
-/**
- * In-memory payment store.
- *
- * On Vercel serverless, each instance has its own memory. Data persists within
- * a warm instance but is not shared across instances and is lost on cold starts.
- * Swap this module for a durable store (e.g. Vercel Postgres / Neon / Redis)
- * before using in production.
- */
-const globalForStore = globalThis as unknown as {
-  paymentsStore?: Payment[];
-};
-
-const payments: Payment[] = globalForStore.paymentsStore ?? [];
-
-if (process.env.NODE_ENV !== "production") {
-  globalForStore.paymentsStore = payments;
+interface PaymentRow {
+  id: string;
+  user_email: string;
+  amount: string;
+  service_to_pay_id: string;
+  payment_date: Date;
 }
 
-export function createPayment(payment: Payment): Payment {
-  payments.push(payment);
-  return payment;
+function toPayment(row: PaymentRow): Payment {
+  return {
+    id: row.id,
+    user_email: row.user_email,
+    amount: Number(row.amount),
+    service_to_pay_id: row.service_to_pay_id,
+    payment_date: row.payment_date.toISOString(),
+  };
 }
 
-export function findPaymentsByEmail(userEmail: string): Payment[] {
+export async function createPayment(payment: Payment): Promise<Payment> {
+  const { rows } = await pool.query<PaymentRow>(
+    `INSERT INTO payments (id, user_email, amount, service_to_pay_id, payment_date)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, user_email, amount, service_to_pay_id, payment_date`,
+    [
+      payment.id,
+      payment.user_email,
+      payment.amount,
+      payment.service_to_pay_id,
+      payment.payment_date,
+    ]
+  );
+
+  return toPayment(rows[0]);
+}
+
+export async function findPaymentsByEmail(
+  userEmail: string
+): Promise<Payment[]> {
   const normalized = userEmail.trim().toLowerCase();
-  return payments.filter((p) => p.user_email.toLowerCase() === normalized);
+  const { rows } = await pool.query<PaymentRow>(
+    `SELECT id, user_email, amount, service_to_pay_id, payment_date
+     FROM payments
+     WHERE user_email = $1`,
+    [normalized]
+  );
+
+  return rows.map(toPayment);
 }
 
-export function getAllPayments(): Payment[] {
-  return [...payments];
+export async function getAllPayments(): Promise<Payment[]> {
+  const { rows } = await pool.query<PaymentRow>(
+    `SELECT id, user_email, amount, service_to_pay_id, payment_date
+     FROM payments`
+  );
+
+  return rows.map(toPayment);
 }

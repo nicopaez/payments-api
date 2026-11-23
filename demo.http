@@ -1,0 +1,17 @@
+@urlBase = https://payments-api-two.vercel.app/
+@email = juan.perez1@mail.com
+
+###
+# 1. create payment
+POST {{urlBase}}/payments
+Content-Type: application/json
+
+{
+  "user_email": "{{email}}",
+  "amount": 200,
+  "service_to_pay_id": "gas"
+}
+
+###
+# 2. query payments
+GET {{urlBase}}/payments?user_email={{email}}

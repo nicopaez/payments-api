@@ -15,12 +15,16 @@ Interactive documentation is available at `/docs` (Swagger UI). The OpenAPI 3.0 
 
 - **Next.js 15** (App Router) — Vercel-native serverless routes
 - **TypeScript** + **Zod** — typed validation
+- **PostgreSQL** (via `pg`) — durable storage
 - **swagger-ui-react** — OpenAPI / Swagger docs
 
 ## Quick start
 
 ```bash
 npm install
+cp .env.example .env     # defaults match docker-compose.yml
+docker compose up -d     # start a local Postgres instance
+npm run db:migrate       # create the payments table
 npm run dev
 ```
 
@@ -62,27 +66,37 @@ Follow the prompts, then promote to production with `vercel --prod`.
 1. Push this repo to GitHub.
 2. Import the project in the [Vercel dashboard](https://vercel.com/new).
 3. Framework preset: **Next.js** (auto-detected).
-4. Deploy — no extra env vars required for the default in-memory store.
+4. Set the `DATABASE_URL` environment variable (e.g. a Vercel Postgres / Neon connection string).
+5. Run `npm run db:migrate` against that database (locally, or as part of your deploy step) before serving traffic.
+6. Deploy.
 
 `vercel.json` sets the framework to Next.js and a default region (`iad1`). Adjust the region if needed.
 
-## Storage note
+## Storage
 
-Payments are stored in memory for simplicity. On Vercel serverless, data lives only while an instance stays warm and is not shared across instances. For production, replace `src/lib/store.ts` with a durable backend (Vercel Postgres, Neon, Upstash Redis, etc.).
+Payments are stored in PostgreSQL. The connection pool lives in `src/lib/db.ts` and reads `DATABASE_URL` (see `.env.example`). Schema changes live under `migrations/` as plain SQL files; apply them with `npm run db:migrate`, which tracks what's already applied in a `schema_migrations` table.
+
+`docker-compose.yml` runs a local Postgres 16 instance for development (`docker compose up -d`, `docker compose down` to stop it, add `-v` to also drop its data volume). Set `PGSSL=false` when connecting to a local/non-TLS Postgres instance — this is the `.env.example` default.
 
 ## Project structure
 
 ```
+docker-compose.yml       # local Postgres for development
+migrations/
+  0001_create_payments.sql
+scripts/
+  migrate.mjs            # applies migrations/*.sql in order
 src/
   app/
-    payments/route.ts   # POST & GET /payments
+    payments/route.ts    # POST & GET /payments
     openapi.json/route.ts
-    docs/page.tsx       # Swagger UI
-    page.tsx            # Landing page
+    docs/page.tsx         # Swagger UI
+    page.tsx              # Landing page
   components/
     SwaggerUI.tsx
   lib/
-    store.ts
+    db.ts                 # pg connection pool
+    store.ts              # Postgres-backed payment queries
     validation.ts
     openapi.ts
   types/
