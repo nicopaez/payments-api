@@ -8,7 +8,7 @@ export const openApiSpec = {
   },
   servers: [
     {
-      url: "/",
+      url: "https://payments-api-two.vercel.app",
       description: "Current environment",
     },
   ],
@@ -74,10 +74,9 @@ export const openApiSpec = {
             in: "query",
             required: true,
             description: "Email of the user whose payments should be returned",
+            example: "jane@example.com",
             schema: {
               type: "string",
-              format: "email",
-              example: "jane@example.com",
             },
           },
         ],
@@ -152,7 +151,8 @@ export const openApiSpec = {
           },
           amount: {
             type: "number",
-            exclusiveMinimum: 0,
+            minimum: 0.01,
+            description: "Payment amount. Must be greater than 0.",
             example: 49.99,
           },
           service_to_pay_id: {
